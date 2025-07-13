@@ -35,12 +35,15 @@ export default function GameScene() {
     const game = new Phaser.Game(config);
 
     // Declare game variables
-    let player, npc, king, item, cursors;
+    let player, npc, king, item, redGem, cursors;
 
     // Load images and assets before the game starts
     function preload() {
       this.load.image('bg', 'assets/image/bg.png');        // Background image
-      this.load.image('player', 'assets/image/player.gif'); // Player sprite
+      this.load.spritesheet('player', 'assets/image/player.png', {
+        frameWidth:48,
+        frameHeight:48,
+      });
       this.load.spritesheet('npc', 'assets/image/dogNPC.gif', {
         frameWidth:250,
         frameHeight:300,
@@ -49,10 +52,16 @@ export default function GameScene() {
         frameWidth:250,
         frameHeight:300,
       });       // NPC sprite
-      this.load.spritesheet('item', 'assets/image/crystal.gif',{
-        frameWidth:100,
-        frameHeight:300,
+      this.load.spritesheet('redGem', 'assets/image/gems.png',{
+        frameWidth:172,
+        frameHeight:172,
       });  // Item sprite
+
+      this.load.spritesheet('item', 'assets/image/crystal.gif',{
+        frameWidth:172,
+        frameHeight:172,
+      });  // Item sprite
+
     }
 
     // Create game objects and logic
@@ -62,7 +71,9 @@ export default function GameScene() {
         .setDisplaySize(window.innerWidth, window.innerHeight);
 
       // Add the player sprite and resize it
-      player = this.physics.add.sprite(100, 100, 'player').setDisplaySize(100, 100);
+      player = this.physics.add.sprite(100, 100, 'player')
+        .setDisplaySize(64, 64)
+        .setCollideWorldBounds(true);
 
       // Add an NPC sprite
       npc = this.physics.add.sprite(600, 200, 'npc').setDisplaySize(100, 100);
@@ -71,6 +82,36 @@ export default function GameScene() {
 
       // Add an item that can be picked up
       item = this.physics.add.sprite(600, 600, 'item').setDisplaySize(100, 100);
+
+      redGem = this.physics.add.sprite(1000, 200, 'redGem').setScale(0.5);
+
+      this.anims.create({
+        key: "walk_down",
+        frames: this.anims.generateFrameNumbers('player', { start: 0, end: 2 }),
+        frameRate: 6,
+        repeat: -1,
+      })
+
+      this.anims.create({
+        key: "walk_left",
+        frames: this.anims.generateFrameNumbers('player', { start: 3, end: 5 }),
+        frameRate: 6,
+        repeat: -1,
+      })
+
+      this.anims.create({
+        key: "walk_up",
+        frames: this.anims.generateFrameNumbers('player', { start: 6, end: 8 }),
+        frameRate: 6,
+        repeat: -1,
+      })
+
+      this.anims.create({
+        key: "walk_right",
+        frames: this.anims.generateFrameNumbers('player', { start: 9, end: 11 }),
+        frameRate: 6,
+        repeat: -1,
+      })
 
       this.anims.create({
         key: 'npc_idle',
@@ -93,9 +134,17 @@ export default function GameScene() {
         repeat: -1,
       })
 
+      this.anims.create({
+        key: 'red_spin',
+        frames: this.anims.generateFrameNumbers('redGem', { start: 0, end: 5 }),
+        frameRate: 4,
+        repeat: -1,
+      })
+
       npc.anims.play('npc_idle', true);
       king.anims.play('king_idle', true);
       item.anims.play('item_spin', true);
+      redGem.anims.play('red_spin', true);
 
       // Set up arrow key input
       cursors = this.input.keyboard.createCursorKeys();
@@ -110,6 +159,8 @@ export default function GameScene() {
         // Check if player is near the item
         const nearItem = Phaser.Math.Distance.Between(player.x, player.y, item.x, item.y) < 100;
 
+        const nearRedGem = Phaser.Math.Distance.Between(player.x, player.y, redGem.x, redGem.y) < 50;
+
         // If near NPC, show conversation for 3 seconds
         if (nearNpc) {
           setShowConversation(true);
@@ -120,6 +171,11 @@ export default function GameScene() {
           item.destroy();
           alert('You picked up the item!');
           setInventory(preve => [...preve, 'Crystal']); // Add item to inventory
+        }
+        else if (nearItem) {
+          redGem.destroy();
+          alert('You picked up the red gem!');
+          setInventory(preve => [...preve, 'Red Gem']); // Add item to inventory
         }
         else if (nearKing) {
           setShowConv(true);
@@ -133,10 +189,25 @@ export default function GameScene() {
       player.setVelocity(0); // Stop player if no key pressed
 
       // Move player based on arrow key input
-      if (cursors.left.isDown) player.setVelocityX(-160);
-      if (cursors.right.isDown) player.setVelocityX(160);
-      if (cursors.up.isDown) player.setVelocityY(-160);
-      if (cursors.down.isDown) player.setVelocityY(160);
+      if (cursors.left.isDown) {
+        player.setVelocityX(-160);
+        player.anims.play('walk_left', true);
+      }
+      else if (cursors.right.isDown) {
+        player.setVelocityX(160);
+        player.anims.play('walk_right', true);
+      }
+      else if (cursors.up.isDown) {
+        player.setVelocityY(-160);
+        player.anims.play('walk_up', true);
+      }
+      else if (cursors.down.isDown) {
+        player.setVelocityY(160);
+        player.anims.play('walk_down', true);
+      }
+      else {
+        player.anims.stop(); // Stop animation if no movement
+      }
     }
 
     // Cleanup Phaser game instance on component unmount
